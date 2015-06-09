@@ -1,10 +1,14 @@
+#Justin VanWinkle
+#Raspi zoomable camera
+
 import time
 import RPi.GPIO as GPIO
 import picamera
+import shlex
+from subprocess import call
 from datetime import datetime
 
 camera = picamera.PiCamera()
-        
 
 def main():
         
@@ -35,25 +39,32 @@ def main():
     camera.annotate_text = "Primal Ops, L.L.C."
     
     camera.start_preview()
+    call(shlex.split('fbcp &'))
 
-        
     while(1):
         time.sleep(0.01)
-        #record
+
+        #record video
         if GPIO.event_detected(16):
             if bRecording:
                 bRecording = False
                 camera.stop_recording()
+                
+                #kill everything so I can get to the console
+                call(shlex.split('killall fbcp'))
                 return()
+
             else:
                 bRecording = True
                 strDateTime = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-')
                 strFilename = strDateTime + "Spotlight.mkv" 
                 camera.start_recording(strFilename, format='h264', resize=None, bitrate=0, quality=25)
+
         #no zoom
         elif GPIO.event_detected(15):
             nFrame = 1
             camera.zoom = (0.0,0.0,1.0,1.0)
+
         #zoom out
         elif GPIO.event_detected(13):
             while GPIO.input(13) == GPIO.LOW:
@@ -61,7 +72,7 @@ def main():
                     nFrame *= nZoomInterval
                     corner = 0.5 - nFrame/2.0
                     camera.zoom = (corner,corner,nFrame,nFrame)
-                    time.sleep(0.01)
+
         #zoom in
         elif GPIO.event_detected(12):
             while GPIO.input(12) == GPIO.LOW:
@@ -69,7 +80,5 @@ def main():
                     nFrame /= nZoomInterval
                     corner = 0.5 - nFrame/2.0            
                     camera.zoom = (corner,corner,nFrame,nFrame)
-                    time.sleep(0.003)
-                    print(nFrame)
         
 main()
